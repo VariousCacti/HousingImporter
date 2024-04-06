@@ -1,10 +1,23 @@
 /// <reference types="../CTAutocomplete" />
 import { loadAction } from "./importer/loadAction.js";
 
-export default (script, config, callback) => {
-    if (!config.timeout || !Object.keys(config).includes("useSafeMode")) {
-        callback(false);
-        return;
-    }
-    loadAction(script, config, callback);
-}
+register("command", () => {
+    loadAction([
+        {
+          "context": "FUNCTION",
+          "contextTarget": { "name": "example" },
+          "start": [
+            
+          ],
+          "target": [
+
+          ]
+        }
+      ], {
+        timeout: 1000,
+        useSafeMode: false,
+      },
+      (value) => {
+        console.log(value);
+      })
+}).setName("himport");

@@ -1,6 +1,6 @@
+import conditions from '../actions/conditions';
 import menus from '../actions/menus';
 import { addOperation, setConfig, isWorking } from '../gui/Queue';
-import conditions from '../actions/conditions';
 
 export function loadAction(script, config, callback) {
     if (isWorking()) return callback(false);
@@ -33,94 +33,185 @@ export function loadAction(script, config, callback) {
                     break;
             }
         }
-        for (let i = 0; i < script[container].actions.length; i++) {
-            addOperation({ type: 'click', slot: 50 }); // click "Add Action" Button
-            addOperation({ type: 'option', option: menus[script[container].actions[i].type].action_name });
-            importComponent(script[container].actions[i], menus[script[container].actions[i].type]);
-            addOperation({ type: 'returnToEditActions' });
+
+        let instructions = actionList(script[container].start, script[container].target, false);
+        let instructionsFromNew = actionList([], script[container].target, false);
+
+        if(instructionsFromNew.length < instructions.length) instructions = instructionsFromNew;
+
+        // ChatLib.chat("&6Length&f: " + instructions.length);
+        // ChatLib.chat("&6Length From New&f: " + instructionsFromNew.length);
+
+        for(let instruction of instructions) {
+            addOperation(instruction);
         }
+
     }
+
     addOperation({ type: 'done' });
 }
 
-function importComponent(component, menu) {
-    // Go through every setting in the menu
-    addOperation({ type: 'setGuiContext', context: component.type });
-    for (let key in component) {asd
+function action(start, target, useConditions) {
+
+    if(start.type === "EXIT" && target.type === "EXIT") return [];
+
+    let editInstructions = [];
+    let settings = (useConditions) ? conditions[target.type] : menus[target.type];
+
+    let keys = Object.keys(target);
+    for(let key in start) {
+        if(!keys.includes(key)) keys.push(key);
+    }
+        
+    for (let key of keys) {
+
         if (key == "type") continue;
-        if (JSON.stringify(menu[key].default_value).toLowerCase() == JSON.stringify(component[key]).toLowerCase()) continue;
-        if (!component[key]) continue;
-        let setting = menu[key];
-        addOperation({ type: 'click', slot: setting.slot });
+        let setting = settings[key];
+        if (start[key] == null) start[key] = setting.default_value;
+        if (target[key] == null) target[key] = setting.default_value;
+        if (JSON.stringify(start[key]).toLowerCase() == JSON.stringify(target[key]).toLowerCase()) continue;
+        
+        editInstructions.push({ type: 'click', slot: setting.slot });
         switch (setting.type) {
             case "chat_input":
-                addOperation({ type: 'chat', text: component[key] });
+                editInstructions.push({ type: 'chat', text: target[key] });
                 break;
             case "anvil_input":
-                addOperation({ type: 'anvil', text: component[key] });
+                editInstructions.push({ type: 'anvil', text: target[key] });
                 break;
             case "conditions":
-                for (let condition in component[key]) {
-                    addOperation({ type: 'click', slot: 50 }); // click "Add Condition" Button
-                    addOperation({ type: 'option', option: conditions[component[key][condition].type].condition_name });
-                    importComponent(component[key][condition], conditions[component[key][condition].type]);
-                    addOperation({ type: 'returnToEditActions' });
-                }
-                addOperation({ type: 'back' });
+                editInstructions.push(...actionList(start[key], target[key], true));
                 break;
             case "static_option_select":
                 // Static option select is for Hypixel made options, which will be uppercase for the first character
-                addOperation({ type: 'option', option: menu[key].options.find(n => n.toLowerCase() == component[key].replace("_", " ").toLowerCase()) });
+                editInstructions.push({ type: 'option', option: setting.options.find(n => n.toLowerCase() == target[key].replace("_", " ").toLowerCase()) });
                 break;
             case "dynamic_option_select":
-                addOperation({ type: 'option', option: component[key] });
+                editInstructions.push({ type: 'option', option: target[key] });
                 break;
             case "location":
-                addOperation({ type: 'click', slot: 13 }); // Click "Custom Coordinates" Button
-                let location = component[key];
-                addOperation({ type: 'anvil', text: `${location.relX == 0 ? "" : "~"}${location.x} ${location.relY == 0 ? "" : "~"}${location.y} ${location.relZ == 0 ? "" : "~"}${location.z} ${location.yaw == -999 ? "" : location.yaw} ${location.yaw == 0 || location.pitch == 0 ? "" : location.pitch}` });
+                editInstructions.push({ type: 'click', slot: 13 }); // Click "Custom Coordinates" Button
+                let location = target[key];
+                editInstructions.push({ type: 'anvil', text: `${location.relX == 0 ? "" : "~"}${location.x} ${location.relY == 0 ? "" : "~"}${location.y} ${location.relZ == 0 ? "" : "~"}${location.z} ${location.yaw == -999 ? "" : location.yaw} ${location.yaw == 0 || location.pitch == 0 ? "" : location.pitch}` });
                 break;
             case "subactions":
-                for (let subaction in component[key]) {
-                    addOperation({ type: 'click', slot: 50 }); // click "Add Action" Button
-                    addOperation({ type: 'option', option: menus[component[key][subaction].type].action_name });
-                    importComponent(component[key][subaction], menus[component[key][subaction].type]);
-                    addOperation({ type: 'returnToEditActions' });
-                }
-                addOperation({ type: 'back' });
+                editInstructions.push(...actionList(start[key], target[key], false));
                 break;
             case "item":
-                addOperation({ type: 'item', item: component[key] });
+                editInstructions.push({ type: 'item', item: target[key] });
                 break;
             // Action exceptions that cannot fit under other options
             case "enchantment":
-                if (component[key] < 50) addOperation({ type: 'click', slot: component[key] + 10 })
+                if (target[key] < 50) editInstructions.push({ type: 'click', slot: target[key] + 10 })
                 else {
-                    addOperation({ type: 'click', slot: 53 }); // click next page
-                    addOperation({ type: 'click', slot: component[key] - 40 });
+                    editInstructions.push({ type: 'click', slot: 53 }); // click next page
+                    editInstructions.push({ type: 'click', slot: target[key] - 40 });
                 }
                 break;
             case "sound":
-                addOperation({ type: 'click', slot: 48 }); // click "Custom Sound" Button
-                addOperation({ type: 'chat', text: convertSound(component[key]) });
+                editInstructions.push({ type: 'click', slot: 48 }); // click "Custom Sound" Button
+                editInstructions.push({ type: 'chat', text: convertSound(target[key]) });
                 break;
             case "slot":
-                if (/(\%.*\%)|(\d+)/.test(component[key])) {
-                    addOperation({ type: 'click', slot: 8 }); // click "Manual Input" Button
-                    addOperation({ type: 'anvil', text: component[key] });
+                if (/(\%.*\%)|(\d+)/.test(target[key])) {
+                    editInstructions.push({ type: 'click', slot: 8 }); // click "Manual Input" Button
+                    editInstructions.push({ type: 'anvil', text: target[key] });
                 } else {
-                    addOperation({ type: 'option', option: component[key] });
+                    editInstructions.push({ type: 'option', option: target[key] });
                 }
                 break;
         }
     }
 
+    editInstructions.push({ type: 'click', slot: 31 });
+
+    return editInstructions;
+
 }
 
+function actionFromNew(target, useConditions) {
+    let start = { type: target.type };
+    for(let key in target) {
+        if(key === "type") continue;
+        start[key] = (useConditions) ? conditions[target.type][key].default_value : menus[target.type][key].default_value;
+    }
+    return [{ type: 'click', slot: 50 }, { type: 'option', option: ((useConditions) ? conditions[target.type].condition_name : menus[target.type].action_name) }, ...action(start, target, useConditions)];
+}
 
+function actionList(start, target, useConditions) {
 
+    let editInstructions = [];
+    let page = 0;
 
-const sounds = [
+    let current = [...start];
+
+    for(let i = 0; i < target.length; i++) {
+
+        let lowestDistance = {value: null, distance: Infinity};
+
+        for(let j = 0; j < current.length; j++) {
+
+            if(target[i].type !== current[j].type || target.includes(current[j])) continue;
+            let distance = action(current[j], target[i], useConditions).length + Math.max(0, j - i);
+            if(distance < lowestDistance.distance) lowestDistance = {value: current[j], index: j, distance: distance};
+
+        }
+
+        let distance = actionFromNew(target[i], useConditions).length + target.length - 1 - i;
+        if(distance < lowestDistance.distance) lowestDistance = {distance: distance};
+
+        if(lowestDistance.value) {
+            if(lowestDistance.distance > 1) { 
+                getSlot(lowestDistance.index, "click");
+                editInstructions.push(...action(lowestDistance.value, target[i], useConditions));
+                page = 0;
+            }
+            current[lowestDistance.index] = target[i];
+        } else {
+            editInstructions.push(...actionFromNew(target[i], useConditions));
+            current.push(target[i]);
+        }
+    }
+
+    for(let i = 0; i < current.length; i++) {
+        if(!target.includes(current[i])) {
+            getSlot(i, "rightClick");
+            current.splice(i, 1);
+            i--;
+            if(!current.length) break;
+        }
+    }
+
+    for(let i = target.length - 1; i >= 0; i--) {
+        let index = current.indexOf(target[i]);
+        while(i > index) {
+            getSlot(index, "shiftRightClick");
+            let temp = current[index + 1];
+            current[index + 1] = current[index];
+            current[index] = temp;
+            index++;
+        }
+    }
+
+    function getSlot(slot, type) {
+        while(page < Math.floor(slot / 21)) {
+            editInstructions.push({type: 'click', slot: 53});
+            page++;
+        }
+        while(page > Math.floor(slot / 21)) {
+            editInstructions.push({type: 'click', slot: 45});
+            page--;
+        }
+        editInstructions.push({type: type, slot: 10 + (Math.floor((slot % 21) / 7) * 9) + (slot % 7)});
+    }
+
+    editInstructions.push({type: 'click', slot: 49});
+
+    return editInstructions;        
+
+}
+
+let sounds = [
     { name: "Ambience Cave", path: "ambient.cave.cave" },
     { name: "Ambience Rain", path: "ambient.weather.rain" },
     { name: "Ambience Thunder", path: "ambient.weather.thunder" },

@@ -168,6 +168,44 @@ function click(slotId) {
   }
 }
 
+function rightClick(slotId) {
+  slotToClick = slotId;
+  if (useSafeMode) {
+    setArrowToSlot(slotId);
+  } else {
+    Client.sendPacket(
+      new C0EPacketClickWindow(
+        Player.getContainer().getWindowId(),
+        slotId,
+        1,
+        0,
+        null,
+        0
+      )
+    );
+    setNotReady();
+  }
+}
+
+function shiftRightClick(slotId) {
+  slotToClick = slotId;
+  if (useSafeMode) {
+    setArrowToSlot(slotId);
+  } else {
+    Client.sendPacket(
+      new C0EPacketClickWindow(
+        Player.getContainer().getWindowId(),
+        slotId,
+        1,
+        1,
+        null,
+        0
+      )
+    );
+    setNotReady();
+  }
+}
+
 function returnToEditActions() {
   Navigator.isReturning = true;
   const containerName = Player.getContainer().getName();
@@ -290,6 +328,8 @@ export default Navigator = {
   selectItem,
   setSelecting,
   click,
+  rightClick,
+  shiftRightClick,
   goBack,
   returnToEditActions,
   inputAnvil,

@@ -85,9 +85,13 @@ register("tick", () => {
     operation = queue.shift();
   }
   Navigator.goto = false;
-  switch (operation.type) {
+    switch (operation.type) {
     case "click":
       return Navigator.click(operation.slot);
+    case "rightClick":
+      return Navigator.rightClick(operation.slot);
+    case "shiftRightClick":
+      return Navigator.shiftRightClick(operation.slot);
     case "anvil":
       return Navigator.inputAnvil(operation.text);
     case "returnToEditActions":
@@ -106,8 +110,7 @@ register("tick", () => {
       return Client.currentGui.close();
     case "goto":
       Navigator.goto = true;
-      ChatLib.chat(`&3HousingImporter &fPlease open action container &e${operation.name}`);
-      Navigator.isReady = false;
+            Navigator.isReady = false;
       return;
     case "wait":
       Navigator.isReady = false;
@@ -167,7 +170,7 @@ register("guiMouseClick", (x, y) => {
 });
 
 export function addOperation(operation) {
-  if (!Navigator.isWorking) {
+    if (!Navigator.isWorking) {
     if (operation.type == "returnToEditActions") return;
     Navigator.isReady = true;
   }
